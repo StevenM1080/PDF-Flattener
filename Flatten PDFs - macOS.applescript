@@ -9,19 +9,7 @@ property NSString : a reference to current application's NSString
 property NSURL : a reference to current application's NSURL
 property NSUUID : a reference to current application's NSUUID
 property PDFDocument : a reference to current application's PDFDocument
-
-script PDFRenderView
-	property parent : class "NSView"
-	property sourcePage : missing value
-
-	on drawRect:dirtyRect
-		if sourcePage is not missing value then
-			sourcePage's setDisplaysAnnotations_(true)
-			set graphicsContext to current application's NSGraphicsContext's currentContext()
-			sourcePage's drawWithBox_toContext_(current application's kPDFDisplayBoxMediaBox, graphicsContext's CGContext())
-		end if
-	end drawRect:
-end script
+property PDFView : a reference to current application's PDFView
 
 on run
 	display dialog "Drag one or more PDF files or folders onto this app. PDFs inside folders will be processed recursively." with title appName buttons {"OK"} default button "OK"
@@ -142,9 +130,20 @@ on flattenPDFAtPath(inputPath)
 			if sourcePage is missing value then error "Could not read page " & (pageIndex + 1) & "."
 
 			set pageBounds to sourcePage's boundsForBox_(current application's kPDFDisplayBoxMediaBox)
-			set renderView to PDFRenderView's alloc()'s initWithFrame_(pageBounds)
-			set renderView's sourcePage to sourcePage
-			set pageData to renderView's dataWithPDFInsideRect_(renderView's |bounds|())
+			set renderView to PDFView's alloc()'s initWithFrame_(pageBounds)
+			try
+				sourcePage's setDisplaysAnnotations_(true)
+				renderView's setDocument_(sourceDocument)
+				renderView's goToPage_(sourcePage)
+				renderView's setDisplayBox_(current application's kPDFDisplayBoxMediaBox)
+				renderView's setAutoScales_(false)
+				renderView's setScaleFactor_(1.0)
+				renderView's setBackgroundColor_(current application's NSColor's whiteColor())
+				renderView's setDisplaysPageBreaks_(false)
+				set pageData to renderView's dataWithPDFInsideRect_(renderView's |bounds|())
+			on error errorMessage number errorNumber
+				error errorMessage number errorNumber
+			end try
 			set renderedDocument to PDFDocument's alloc()'s initWithData_(pageData)
 			set renderedPage to renderedDocument's pageAtIndex_(0)
 			if renderedPage is missing value then error "Could not render page " & (pageIndex + 1) & "."
